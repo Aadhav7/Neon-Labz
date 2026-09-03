@@ -17,7 +17,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'https://neon-ktudzpfjb-aadhav7s-projects.vercel.app',
+    origin: 'https://neon-ktudzpfjb-aadhav7s-projects.vercel.app',
     credentials: true,
   });
 
