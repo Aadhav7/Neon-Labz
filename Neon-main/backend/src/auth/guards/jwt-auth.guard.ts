@@ -13,10 +13,10 @@ export class JwtAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const token = this.extractTokenFromCookie(request);
+    const token = this.extractToken(request);
 
     if (!token) {
-      throw new UnauthorizedException('Token not found in cookies');
+      throw new UnauthorizedException('Authentication token not found');
     }
 
     try {
@@ -33,7 +33,17 @@ export class JwtAuthGuard implements CanActivate {
     return true;
   }
 
-  private extractTokenFromCookie(request: Request): string | undefined {
+  private extractToken(request: Request): string | undefined {
+    // 1. Check Authorization header: Bearer <token>
+    const authHeader = request.headers.authorization;
+    if (authHeader) {
+      const [type, token] = authHeader.split(' ');
+      if (type === 'Bearer' && token) {
+        return token;
+      }
+    }
+
+    // 2. Fall back to cookie
     return request.cookies?.jwt;
   }
 }

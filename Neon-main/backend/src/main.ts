@@ -16,9 +16,29 @@ async function bootstrap() {
     }),
   );
 
+  const frontendEnv = process.env.FRONTEND_URL || '';
+  const configuredOrigins = frontendEnv
+    .split(',')
+    .map((url) => url.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+
   app.enableCors({
-    origin: 'https://neon-ktudzpfjb-aadhav7s-projects.vercel.app',
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const cleanOrigin = origin.replace(/\/+$/, '');
+      if (
+        cleanOrigin === 'http://localhost:3000' ||
+        cleanOrigin === 'http://localhost:3001' ||
+        cleanOrigin.endsWith('.vercel.app') ||
+        configuredOrigins.includes(cleanOrigin)
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
   const port = process.env.PORT || 3001;

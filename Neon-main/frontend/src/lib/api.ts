@@ -15,15 +15,42 @@ export interface ApiError {
 }
 
 class ApiClient {
+  getToken(): string | null {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('auth_token');
+    }
+    return null;
+  }
+
+  setToken(token: string) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', token);
+    }
+  }
+
+  removeToken() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+    }
+  }
+
   private getHeaders(): HeadersInit {
-    return {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
+    const token = this.getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
+      if (response.status === 401) {
+        this.removeToken();
+      }
       let errorMessage = 'An error occurred';
       try {
         const errorData: ApiError = await response.json();
@@ -47,7 +74,11 @@ class ApiClient {
       credentials: 'include',
       body: JSON.stringify(data),
     });
-    return this.handleResponse<{ message: string; user: User }>(res);
+    const result = await this.handleResponse<{ message: string; user: User; access_token?: string }>(res);
+    if (result.access_token) {
+      this.setToken(result.access_token);
+    }
+    return result;
   }
 
   async login(data: { email: string; password: string }) {
@@ -57,16 +88,24 @@ class ApiClient {
       credentials: 'include',
       body: JSON.stringify(data),
     });
-    return this.handleResponse<{ message: string; user: User }>(res);
+    const result = await this.handleResponse<{ message: string; user: User; access_token?: string }>(res);
+    if (result.access_token) {
+      this.setToken(result.access_token);
+    }
+    return result;
   }
 
   async logout() {
-    const res = await fetch(`${API_URL}/auth/logout`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      credentials: 'include',
-    });
-    return this.handleResponse<{ message: string }>(res);
+    try {
+      const res = await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        credentials: 'include',
+      });
+      return await this.handleResponse<{ message: string }>(res);
+    } finally {
+      this.removeToken();
+    }
   }
 
   async getMe(): Promise<User> {
@@ -107,12 +146,16 @@ class ApiClient {
   }
 
   async deleteAccount(): Promise<{ message: string }> {
-    const res = await fetch(`${API_URL}/users/profile`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      credentials: 'include',
-    });
-    return this.handleResponse<{ message: string }>(res);
+    try {
+      const res = await fetch(`${API_URL}/users/profile`, {
+        method: 'DELETE',
+        headers: this.getHeaders(),
+        credentials: 'include',
+      });
+      return await this.handleResponse<{ message: string }>(res);
+    } finally {
+      this.removeToken();
+    }
   }
 }
 

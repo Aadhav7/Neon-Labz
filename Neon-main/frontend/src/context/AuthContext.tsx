@@ -32,12 +32,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshUser = async () => {
     try {
+      const token = api.getToken();
+      const hasSessionCookie =
+        typeof document !== 'undefined' &&
+        document.cookie.includes('is_authenticated=true');
+
+      if (!token && !hasSessionCookie) {
+        setUser(null);
+        setSessionCookie(false);
+        setLoading(false);
+        return;
+      }
+
       const userData = await api.getMe();
       setUser(userData);
       setSessionCookie(true);
     } catch {
       setUser(null);
       setSessionCookie(false);
+      api.removeToken();
     } finally {
       setLoading(false);
     }
@@ -67,6 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
+      api.removeToken();
       setUser(null);
       setSessionCookie(false);
       router.push('/login');

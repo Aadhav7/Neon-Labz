@@ -26,7 +26,11 @@ export class AuthController {
   ) {
     const result = await this.authService.register(createUserDto);
     this.setCookie(res, result.access_token);
-    return { message: 'Registered successfully', user: result.user };
+    return {
+      message: 'Registered successfully',
+      user: result.user,
+      access_token: result.access_token,
+    };
   }
 
   @Post('login')
@@ -37,16 +41,22 @@ export class AuthController {
   ) {
     const result = await this.authService.login(loginDto);
     this.setCookie(res, result.access_token);
-    return { message: 'Logged in successfully', user: result.user };
+    return {
+      message: 'Logged in successfully',
+      user: result.user,
+      access_token: result.access_token,
+    };
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   logout(@Res({ passthrough: true }) res: Response) {
+    const isProd = this.isProduction();
     res.clearCookie('jwt', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
     });
     return { message: 'Logged out successfully' };
   }
@@ -57,12 +67,23 @@ export class AuthController {
     return this.authService.getMe(req.user.userId);
   }
 
+  private isProduction(): boolean {
+    return (
+      process.env.NODE_ENV === 'production' ||
+      !!process.env.RAILWAY_ENVIRONMENT ||
+      !!process.env.RAILWAY_PUBLIC_DOMAIN ||
+      (process.env.FRONTEND_URL?.startsWith('https://') ?? false)
+    );
+  }
+
   private setCookie(res: Response, token: string) {
+    const isProd = this.isProduction();
     res.cookie('jwt', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // true in production for cross-domain
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // none in production for cross-domain
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 1000 * 60 * 60 * 24, // 1 day
+      path: '/',
     });
   }
 }
